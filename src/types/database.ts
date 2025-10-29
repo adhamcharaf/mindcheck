@@ -52,6 +52,7 @@ export type Database = {
           created_at: string | null
           id: string
           insight: string | null
+          key_facts: Json | null
           mood_score: number | null
           transcript: string
           user_id: string
@@ -61,6 +62,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           insight?: string | null
+          key_facts?: Json | null
           mood_score?: number | null
           transcript: string
           user_id: string
@@ -70,6 +72,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           insight?: string | null
+          key_facts?: Json | null
           mood_score?: number | null
           transcript?: string
           user_id?: string
@@ -91,6 +94,7 @@ export type Database = {
           email: string
           id: string
           is_premium: boolean | null
+          long_term_memory: Json | null
           onboarding_challenge: string | null
           onboarding_completed: boolean | null
           onboarding_feeling: string | null
@@ -107,6 +111,7 @@ export type Database = {
           email: string
           id?: string
           is_premium?: boolean | null
+          long_term_memory?: Json | null
           onboarding_challenge?: string | null
           onboarding_completed?: boolean | null
           onboarding_feeling?: string | null
@@ -123,6 +128,7 @@ export type Database = {
           email?: string
           id?: string
           is_premium?: boolean | null
+          long_term_memory?: Json | null
           onboarding_challenge?: string | null
           onboarding_completed?: boolean | null
           onboarding_feeling?: string | null

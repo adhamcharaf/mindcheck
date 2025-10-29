@@ -1,13 +1,13 @@
-// Colors
+// Colors - Voyce Brand Palette
 export const COLORS = {
-  primary: '#4A90E2',
-  secondary: '#7B68EE',
-  accent: '#FF6B6B',
-  background: '#FFFFFF',
-  backgroundDark: '#F5F5F5',
-  text: '#333333',
-  textLight: '#666666',
-  textMuted: '#999999',
+  primary: '#8B7FFF',       // Violet doux
+  secondary: '#FF9ECD',     // Rose pêche
+  accent: '#FFD23F',        // Jaune insight
+  background: '#1A1A2E',    // Dark BG
+  backgroundDark: '#16213E', // Surface
+  text: '#FFFFFF',          // Text primary
+  textLight: '#AAAAAA',     // Text secondary
+  textMuted: '#AAAAAA',     // Text secondary
   border: '#E0E0E0',
   success: '#4CAF50',
   warning: '#FFC107',

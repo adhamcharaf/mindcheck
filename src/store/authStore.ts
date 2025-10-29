@@ -29,7 +29,7 @@ interface AuthState {
   refreshUser: () => Promise<void>;
 }
 
-const AUTH_STORAGE_KEY = '@mindcheck:auth';
+const AUTH_STORAGE_KEY = '@voyce:auth';
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,

@@ -10,6 +10,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES } from '../../utils/constants';
 import { generateInsight } from '../../services/claude';
+import { getRecentKeyFacts } from '../../services/sessions';
 import { useAuthStore } from '../../store/authStore';
 import { RootStackParamList } from '../../types';
 
@@ -28,20 +29,36 @@ export default function LoadingScreen({ navigation, route }: LoadingScreenProps)
 
   const generateInsightAndNavigate = async () => {
     try {
-      // Get onboarding context
-      const context = user
-        ? {
-            reason: user.onboarding_reason,
-            situation: user.onboarding_situation,
-            feeling: user.onboarding_feeling,
-          }
-        : undefined;
+      if (!user) {
+        throw new Error('No user found');
+      }
 
-      // Generate insight (this is the first session, so isFirstSession = true)
+      // Get onboarding context
+      const context = {
+        reason: user.onboarding_reason,
+        situation: user.onboarding_situation,
+        feeling: user.onboarding_feeling,
+      };
+
+      // Fetch memory context
+      const isPremium = user.is_premium || false;
+      const { context: memoryContext, error: memoryError } = await getRecentKeyFacts(user.id, isPremium);
+
+      if (memoryError) {
+        console.warn('[LoadingScreen] Error fetching memory context:', memoryError);
+      }
+
+      console.log('[LoadingScreen] Memory context:', memoryContext);
+
+      // Determine if first session (from memory context or fallback)
+      const isFirstSession = memoryContext?.isFirstSession ?? true;
+
+      // Generate insight with memory context
       const result = await generateInsight({
         transcript,
-        isFirstSession: true,
+        isFirstSession,
         context,
+        memoryContext,
       });
 
       // Wait a minimum of 3 seconds to show loading screen (UX)
@@ -52,6 +69,7 @@ export default function LoadingScreen({ navigation, route }: LoadingScreenProps)
         transcript,
         audioUri,
         insight: result.insight,
+        keyFacts: result.keyFacts,
       });
     } catch (err) {
       console.error('Error generating insight:', err);
@@ -60,6 +78,7 @@ export default function LoadingScreen({ navigation, route }: LoadingScreenProps)
         transcript,
         audioUri,
         insight: 'Merci pour ce partage.',
+        keyFacts: [],
       });
     }
   };

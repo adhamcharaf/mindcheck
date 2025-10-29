@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES } from '../../utils/constants';
 import { supabase } from '../../services/supabase';
@@ -63,7 +64,7 @@ export default function OnboardingScreen1({ navigation }: OnboardingScreen1Props
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>MindCheck est ton journal vocal quotidien</Text>
+          <Text style={styles.title}>Voyce est ton journal vocal quotidien</Text>
           <Text style={styles.question}>Qu'est-ce que tu aimerais suivre?</Text>
         </View>
 
@@ -93,15 +94,21 @@ export default function OnboardingScreen1({ navigation }: OnboardingScreen1Props
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.continueButton, !selectedGoal && styles.continueButtonDisabled]}
           onPress={handleContinue}
           disabled={!selectedGoal || loading}
         >
-          {loading ? (
-            <ActivityIndicator color={COLORS.background} />
-          ) : (
-            <Text style={styles.continueButtonText}>Continuer</Text>
-          )}
+          <LinearGradient
+            colors={[COLORS.primary, COLORS.secondary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.continueButton, !selectedGoal && styles.continueButtonDisabled]}
+          >
+            {loading ? (
+              <ActivityIndicator color={COLORS.text} />
+            ) : (
+              <Text style={styles.continueButtonText}>Continuer</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -160,7 +167,6 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.lg,
   },
   continueButton: {
-    backgroundColor: COLORS.primary,
     paddingVertical: SPACING.md,
     borderRadius: 12,
     alignItems: 'center',
@@ -169,7 +175,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   continueButtonText: {
-    color: COLORS.background,
+    color: COLORS.text,
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
   },

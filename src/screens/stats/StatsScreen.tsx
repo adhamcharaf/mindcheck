@@ -154,8 +154,8 @@ export default function StatsScreen() {
               backgroundGradientFrom: COLORS.backgroundDark,
               backgroundGradientTo: COLORS.backgroundDark,
               decimalPlaces: 1,
-              color: (opacity = 1) => `rgba(74, 144, 226, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(51, 51, 51, ${opacity})`,
+              color: (opacity = 1) => `rgba(139, 127, 255, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
               style: {
                 borderRadius: 16,
               },

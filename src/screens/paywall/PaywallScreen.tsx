@@ -7,6 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, PRICING, TRIAL_DURATION_DAYS } from '../../utils/constants';
@@ -227,13 +228,19 @@ export default function PaywallScreen({ navigation, route }: PaywallScreenProps)
           </View>
 
           <TouchableOpacity
-            style={styles.primaryButton}
             onPress={handleSaveContent}
             disabled={isProcessing}
           >
-            <Text style={styles.primaryButtonText}>
-              {isProcessing ? 'Traitement...' : 'Sauvegarder mon contenu'}
-            </Text>
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.primaryButton}
+            >
+              <Text style={styles.primaryButtonText}>
+                {isProcessing ? 'Traitement...' : 'Sauvegarder mon contenu'}
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -366,13 +373,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   primaryButton: {
-    backgroundColor: COLORS.primary,
     paddingVertical: SPACING.lg,
     borderRadius: 12,
     alignItems: 'center',
   },
   primaryButtonText: {
-    color: COLORS.background,
+    color: COLORS.text,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
   },

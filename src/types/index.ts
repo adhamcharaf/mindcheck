@@ -25,8 +25,8 @@ export type RootStackParamList = {
   Onboarding5: undefined;
   FirstRecording: undefined;
   Loading: { transcript: string; audioUri: string };
-  Mood: { transcript: string; audioUri: string; insight: string };
-  Insight: { transcript: string; audioUri: string; insight: string; moodScore: number };
+  Mood: { transcript: string; audioUri: string; insight: string; keyFacts: string[] };
+  Insight: { transcript: string; audioUri: string; insight: string; keyFacts: string[]; moodScore: number };
   Paywall: { sessionId: string };
   Main: undefined;
   SessionDetail: { sessionId: string };

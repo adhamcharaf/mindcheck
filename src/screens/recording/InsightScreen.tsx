@@ -30,7 +30,7 @@ type InsightScreenProps = {
 };
 
 export default function InsightScreen({ navigation, route }: InsightScreenProps) {
-  const { transcript, audioUri, insight, moodScore } = route.params;
+  const { transcript, audioUri, insight, keyFacts, moodScore } = route.params;
   const user = useAuthStore((state) => state.user);
   const [isSaving, setIsSaving] = useState(false);
   const [displayedInsight, setDisplayedInsight] = useState(insight);
@@ -121,6 +121,7 @@ export default function InsightScreen({ navigation, route }: InsightScreenProps)
         transcript,
         mood_score: moodScore,
         insight,
+        key_facts: keyFacts || [],
         audio_url: audioUrl || null,
       });
 

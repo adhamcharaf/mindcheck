@@ -9,7 +9,8 @@
       "mcp__supabase__list_migrations",
       "mcp__supabase__list_projects",
       "WebSearch",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "mcp__supabase__list_edge_functions"
     ],
     "deny": [],
     "ask": []

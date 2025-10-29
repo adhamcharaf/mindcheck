@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types';
 import { COLORS, SPACING, FONT_SIZES } from '../../utils/constants';
@@ -20,19 +21,25 @@ export default function WelcomeScreen({ navigation }: WelcomeScreenProps) {
       <View style={styles.content}>
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          <Text style={styles.title}>MindCheck</Text>
+          <Text style={styles.title}>Voyce</Text>
           <Text style={styles.tagline}>
-            Ton journal vocal intelligent pour comprendre et améliorer ton bien-être mental
+            Parle. Comprends. Évolue.
           </Text>
         </View>
 
         {/* CTA Buttons */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={styles.primaryButton}
             onPress={() => navigation.navigate('Signup')}
           >
-            <Text style={styles.primaryButtonText}>Créer un compte</Text>
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.primaryButton}
+            >
+              <Text style={styles.primaryButtonText}>Créer un compte</Text>
+            </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -81,7 +88,6 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   primaryButton: {
-    backgroundColor: COLORS.primary,
     paddingVertical: SPACING.md,
     borderRadius: 12,
     alignItems: 'center',

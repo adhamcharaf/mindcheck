@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types';
 import { COLORS, SPACING, FONT_SIZES, TRIAL_DURATION_DAYS } from '../../utils/constants';
@@ -155,15 +156,21 @@ export default function SignupScreen({ navigation }: SignupScreenProps) {
 
             {/* Submit Button */}
             <TouchableOpacity
-              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
               onPress={handleSignup}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color={COLORS.background} />
-              ) : (
-                <Text style={styles.submitButtonText}>Créer mon compte</Text>
-              )}
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              >
+                {loading ? (
+                  <ActivityIndicator color={COLORS.text} />
+                ) : (
+                  <Text style={styles.submitButtonText}>Créer mon compte</Text>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
 
             {/* Login Link */}
@@ -266,7 +273,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   submitButton: {
-    backgroundColor: COLORS.primary,
     paddingVertical: SPACING.md,
     borderRadius: 12,
     alignItems: 'center',
@@ -276,7 +282,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   submitButtonText: {
-    color: COLORS.background,
+    color: COLORS.text,
     fontSize: FONT_SIZES.lg,
     fontWeight: '600',
   },

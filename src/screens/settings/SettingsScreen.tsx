@@ -58,8 +58,8 @@ export default function SettingsScreen() {
       };
 
       // Write to file
-      const filename = `mindcheck-data-${new Date().toISOString().split('T')[0]}.json`;
-      const fileUri = FileSystem.documentDirectory + filename;
+      const filename = `voyce-data-${new Date().toISOString().split('T')[0]}.json`;
+      const fileUri = `${FileSystem.documentDirectory}${filename}`;
 
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2));
 
@@ -244,7 +244,7 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.linkButton}
-          onPress={() => handleOpenLink('https://help.mindcheck.app', 'Aide')}
+          onPress={() => handleOpenLink('https://help.voyce.app', 'Aide')}
         >
           <Text style={styles.linkText}>Aide</Text>
           <Text style={styles.linkArrow}>→</Text>
@@ -252,7 +252,7 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.linkButton}
-          onPress={() => handleOpenLink('https://mindcheck.app/terms', 'Conditions d\'utilisation')}
+          onPress={() => handleOpenLink('https://voyce.app/terms', 'Conditions d\'utilisation')}
         >
           <Text style={styles.linkText}>Conditions d'utilisation</Text>
           <Text style={styles.linkArrow}>→</Text>
@@ -260,7 +260,7 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.linkButton}
-          onPress={() => handleOpenLink('https://mindcheck.app/privacy', 'Politique de confidentialité')}
+          onPress={() => handleOpenLink('https://voyce.app/privacy', 'Politique de confidentialité')}
         >
           <Text style={styles.linkText}>Politique de confidentialité</Text>
           <Text style={styles.linkArrow}>→</Text>

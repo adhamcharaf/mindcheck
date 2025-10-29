@@ -18,7 +18,7 @@ type MoodScreenProps = {
 };
 
 export default function MoodScreen({ navigation, route }: MoodScreenProps) {
-  const { transcript, audioUri, insight } = route.params;
+  const { transcript, audioUri, insight, keyFacts } = route.params;
   const [moodScore, setMoodScore] = useState(5);
 
   const getMoodEmoji = (score: number): string => {
@@ -34,6 +34,7 @@ export default function MoodScreen({ navigation, route }: MoodScreenProps) {
       transcript,
       audioUri,
       insight,
+      keyFacts,
       moodScore: Math.round(moodScore),
     });
   };

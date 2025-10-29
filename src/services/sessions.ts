@@ -285,3 +285,120 @@ export async function getMoodGraphData(userId: string): Promise<{
     return { labels: [], data: [], error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
+
+/**
+ * Interface for memory context with key facts and temporal information
+ */
+export interface MemoryEntry {
+  date: string; // ISO date string
+  keyFacts: string[];
+  daysAgo: number;
+}
+
+// TODO: Long-term memory compaction (Phase 2 - Future feature)
+// Implement monthly background job to compact old sessions (>30 days) into meta-facts
+// and store in users.long_term_memory JSONB column.
+// Example meta-facts: ["October: recurring work stress on Mondays", "Exercise improves mood"]
+// This will allow unlimited memory retention for premium users while keeping costs low.
+
+export interface MemoryContext {
+  recentSessions: MemoryEntry[];
+  hasLongGap: boolean; // True if gap >7 days since last session
+  isFirstSession: boolean;
+  totalSessions: number;
+}
+
+/**
+ * Gets recent key facts for contextual memory
+ * Trial users: 3 days
+ * Premium users: 30 days
+ */
+export async function getRecentKeyFacts(
+  userId: string,
+  isPremium: boolean
+): Promise<{ context: MemoryContext | null; error: string | null }> {
+  try {
+    const now = new Date();
+    const dayLimit = isPremium ? 30 : 3;
+    const cutoffDate = new Date(now);
+    cutoffDate.setDate(now.getDate() - dayLimit);
+    cutoffDate.setHours(0, 0, 0, 0);
+
+    // Fetch sessions within the memory window (excluding current session being created)
+    const { data: sessions, error } = await supabase
+      .from('sessions')
+      .select('created_at, key_facts')
+      .eq('user_id', userId)
+      .gte('created_at', cutoffDate.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[getRecentKeyFacts] Error fetching sessions:', error);
+      return { context: null, error: error.message };
+    }
+
+    // Also get total session count to detect first session
+    const { count, error: countError } = await supabase
+      .from('sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) {
+      console.error('[getRecentKeyFacts] Error counting sessions:', countError);
+      return { context: null, error: countError.message };
+    }
+
+    const totalSessions = count || 0;
+    const isFirstSession = totalSessions === 0;
+
+    // Build memory entries with temporal context
+    const recentSessions: MemoryEntry[] = [];
+
+    if (sessions && sessions.length > 0) {
+      sessions.forEach((session) => {
+        if (session.key_facts && Array.isArray(session.key_facts) && session.key_facts.length > 0) {
+          const sessionDate = new Date(session.created_at!);
+          const daysAgo = Math.floor((now.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          recentSessions.push({
+            date: session.created_at!,
+            keyFacts: session.key_facts as string[],
+            daysAgo,
+          });
+        }
+      });
+    }
+
+    // Detect long gap (>7 days since last session)
+    let hasLongGap = false;
+    if (!isFirstSession && sessions && sessions.length > 0) {
+      const lastSession = sessions[0];
+      if (lastSession.created_at) {
+        const lastSessionDate = new Date(lastSession.created_at);
+        const daysSinceLastSession = Math.floor(
+          (now.getTime() - lastSessionDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        hasLongGap = daysSinceLastSession > 7;
+      }
+    }
+
+    const context: MemoryContext = {
+      recentSessions,
+      hasLongGap,
+      isFirstSession,
+      totalSessions,
+    };
+
+    console.log('[getRecentKeyFacts] Memory context:', {
+      sessionsFound: recentSessions.length,
+      isFirstSession,
+      hasLongGap,
+      totalSessions,
+    });
+
+    return { context, error: null };
+  } catch (err) {
+    console.error('[getRecentKeyFacts] Unexpected error:', err);
+    return { context: null, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
