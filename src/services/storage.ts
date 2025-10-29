@@ -47,16 +47,43 @@ export async function uploadAudio({
       };
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('audio-recordings')
-      .getPublicUrl(filePath);
-
+    // Return the file path (relative path in bucket)
+    // This will be used to generate signed URLs on demand
     return {
-      audioUrl: urlData.publicUrl,
+      audioUrl: filePath,
     };
   } catch (err) {
     console.error('Unexpected error in uploadAudio:', err);
+    return {
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Gets a signed URL for an audio file (valid for 1 hour)
+ * This provides secure, temporary access to private audio files
+ */
+export async function getSignedAudioUrl(
+  filePath: string
+): Promise<{ url?: string; error?: string }> {
+  try {
+    const { data, error } = await supabase.storage
+      .from('audio-recordings')
+      .createSignedUrl(filePath, 3600); // 1 hour expiration
+
+    if (error) {
+      console.error('Error creating signed URL:', error);
+      return {
+        error: error.message || 'Failed to create signed URL',
+      };
+    }
+
+    return {
+      url: data.signedUrl,
+    };
+  } catch (err) {
+    console.error('Unexpected error in getSignedAudioUrl:', err);
     return {
       error: err instanceof Error ? err.message : 'Unknown error',
     };

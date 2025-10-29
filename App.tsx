@@ -5,11 +5,15 @@ import 'expo-crypto'; // Initialize crypto polyfill for uuid package
 import Navigation from './src/navigation';
 import { useAuthStore } from './src/store/authStore';
 import { COLORS } from './src/utils/constants';
+import { initRevenueCat } from './src/services/revenuecat';
 
 export default function App() {
   const { initialize, isLoading } = useAuthStore();
 
   useEffect(() => {
+    // Initialize RevenueCat (mock mode)
+    initRevenueCat();
+
     // Initialize auth state on app mount
     initialize();
   }, []);

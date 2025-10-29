@@ -29,6 +29,8 @@ export type RootStackParamList = {
   Insight: { transcript: string; audioUri: string; insight: string; moodScore: number };
   Paywall: { sessionId: string };
   Main: undefined;
+  SessionDetail: { sessionId: string };
+  SessionList: { date?: string; userId: string };
 };
 
 export type MainTabParamList = {

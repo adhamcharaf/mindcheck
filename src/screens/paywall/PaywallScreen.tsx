@@ -4,15 +4,16 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { COLORS, SPACING, FONT_SIZES, PRICING, TRIAL_DURATION_DAYS } from '../../utils/constants';
 import { supabase } from '../../services/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { RootStackParamList } from '../../types';
+import { purchasePremium, PackageType } from '../../services/revenuecat';
 
 type PaywallScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Paywall'>;
@@ -22,14 +23,53 @@ type PaywallScreenProps = {
 export default function PaywallScreen({ navigation, route }: PaywallScreenProps) {
   const user = useAuthStore((state) => state.user);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<PackageType>('weekly');
 
-  const handleSaveContent = () => {
-    // Placeholder for RevenueCat IAP
-    Alert.alert(
-      'À venir',
-      'L\'intégration RevenueCat IAP sera ajoutée prochainement. Pour le moment, utilise le bouton "Plus tard" pour activer le Premium gratuit pendant 7 jours.',
-      [{ text: 'OK' }]
-    );
+  const handleSaveContent = async () => {
+    if (!user) return;
+
+    setIsProcessing(true);
+
+    try {
+      // Call mock RevenueCat purchase
+      const { success, error } = await purchasePremium(user.id, selectedPackage);
+
+      if (error || !success) {
+        Alert.alert('Erreur', 'Impossible de traiter l\'achat. Réessaye.');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Update local user state
+      const updatedUser = {
+        ...user,
+        is_premium: true,
+        trial_ends_at: null,
+      };
+      useAuthStore.getState().setUser(updatedUser);
+
+      // Show success message
+      Alert.alert(
+        '✓ Premium activé!',
+        'Tes données sont sauvegardées. Profite de toutes les fonctionnalités!',
+        [
+          {
+            text: 'Commencer',
+            onPress: () => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Main' }],
+              });
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.error('Purchase error:', err);
+      Alert.alert('Erreur', 'Une erreur est survenue. Réessaye.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleLater = async () => {
@@ -59,8 +99,13 @@ export default function PaywallScreen({ navigation, route }: PaywallScreenProps)
         return;
       }
 
-      // Update local state - this will trigger root navigation to re-render and show MainTabs
-      useAuthStore.getState().updateOnboardingStatus(true);
+      // Update local state with trial info
+      const updatedUser = {
+        ...user,
+        onboarding_completed: true,
+        trial_ends_at: trialEndsAt.toISOString(),
+      };
+      useAuthStore.getState().setUser(updatedUser);
 
       // Show surprise message
       Alert.alert(
@@ -69,8 +114,14 @@ export default function PaywallScreen({ navigation, route }: PaywallScreenProps)
         [
           {
             text: 'Activer mon Premium',
-            // No navigation needed - the root Navigation component will automatically
-            // re-render and show MainTabs when onboarding_completed becomes true
+            onPress: () => {
+              // Navigate to main app
+              // Use reset to clear the stack and start fresh at MainTabs
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Main' }],
+              });
+            },
           },
         ]
       );
@@ -109,22 +160,80 @@ export default function PaywallScreen({ navigation, route }: PaywallScreenProps)
         </View>
 
         <View style={styles.pricingContainer}>
+          {/* Package Selection */}
+          <View style={styles.packageSelection}>
+            <TouchableOpacity
+              style={[
+                styles.packageOption,
+                selectedPackage === 'weekly' && styles.packageOptionSelected,
+              ]}
+              onPress={() => setSelectedPackage('weekly')}
+              disabled={isProcessing}
+            >
+              <View style={styles.packageHeader}>
+                <Text style={[
+                  styles.packageTitle,
+                  selectedPackage === 'weekly' && styles.packageTitleSelected,
+                ]}>
+                  Hebdomadaire
+                </Text>
+                <View style={[
+                  styles.radioButton,
+                  selectedPackage === 'weekly' && styles.radioButtonSelected,
+                ]}>
+                  {selectedPackage === 'weekly' && <View style={styles.radioButtonInner} />}
+                </View>
+              </View>
+              <Text style={[
+                styles.packagePrice,
+                selectedPackage === 'weekly' && styles.packagePriceSelected,
+              ]}>
+                ${PRICING.weekly.amount} CAD/semaine
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.packageOption,
+                selectedPackage === 'annual' && styles.packageOptionSelected,
+              ]}
+              onPress={() => setSelectedPackage('annual')}
+              disabled={isProcessing}
+            >
+              <View style={styles.packageHeader}>
+                <View>
+                  <Text style={[
+                    styles.packageTitle,
+                    selectedPackage === 'annual' && styles.packageTitleSelected,
+                  ]}>
+                    Annuel
+                  </Text>
+                  <Text style={styles.packageBadge}>{PRICING.yearly.badge}</Text>
+                </View>
+                <View style={[
+                  styles.radioButton,
+                  selectedPackage === 'annual' && styles.radioButtonSelected,
+                ]}>
+                  {selectedPackage === 'annual' && <View style={styles.radioButtonInner} />}
+                </View>
+              </View>
+              <Text style={[
+                styles.packagePrice,
+                selectedPackage === 'annual' && styles.packagePriceSelected,
+              ]}>
+                ${PRICING.yearly.amount} CAD/an
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={handleSaveContent}
             disabled={isProcessing}
           >
-            <Text style={styles.primaryButtonText}>Sauvegarder mon contenu</Text>
-            <View style={styles.pricingRow}>
-              <Text style={styles.pricingText}>
-                ${PRICING.weekly.amount}/{PRICING.weekly.label.toLowerCase()}
-              </Text>
-              <Text style={styles.pricingOr}>ou</Text>
-              <Text style={styles.pricingText}>
-                ${PRICING.yearly.amount}/an
-              </Text>
-            </View>
-            <Text style={styles.badge}>{PRICING.yearly.badge}</Text>
+            <Text style={styles.primaryButtonText}>
+              {isProcessing ? 'Traitement...' : 'Sauvegarder mon contenu'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -195,6 +304,67 @@ const styles = StyleSheet.create({
   pricingContainer: {
     gap: SPACING.md,
   },
+  packageSelection: {
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  packageOption: {
+    backgroundColor: COLORS.backgroundDark,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: SPACING.md,
+  },
+  packageOptionSelected: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.background,
+  },
+  packageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+  },
+  packageTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  packageTitleSelected: {
+    color: COLORS.primary,
+  },
+  packageBadge: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.premium,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+  packagePrice: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textMuted,
+    fontWeight: '600',
+  },
+  packagePriceSelected: {
+    color: COLORS.primary,
+  },
+  radioButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioButtonSelected: {
+    borderColor: COLORS.primary,
+  },
+  radioButtonInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: COLORS.primary,
+  },
   primaryButton: {
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.lg,
@@ -205,27 +375,6 @@ const styles = StyleSheet.create({
     color: COLORS.background,
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
-    marginBottom: SPACING.sm,
-  },
-  pricingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginBottom: SPACING.xs,
-  },
-  pricingText: {
-    color: COLORS.background,
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-  },
-  pricingOr: {
-    color: COLORS.background,
-    fontSize: FONT_SIZES.sm,
-  },
-  badge: {
-    color: COLORS.background,
-    fontSize: FONT_SIZES.sm,
-    fontStyle: 'italic',
   },
   trialButton: {
     borderWidth: 2,

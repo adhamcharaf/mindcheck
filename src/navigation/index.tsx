@@ -28,6 +28,8 @@ import PaywallScreen from '../screens/paywall/PaywallScreen';
 // Main screens
 import HomeScreen from '../screens/home/HomeScreen';
 import CalendarScreen from '../screens/calendar/CalendarScreen';
+import SessionDetailScreen from '../screens/calendar/SessionDetailScreen';
+import SessionListScreen from '../screens/sessions/SessionListScreen';
 import StatsScreen from '../screens/stats/StatsScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 
@@ -160,6 +162,67 @@ function MainTabs() {
   );
 }
 
+// Main Stack Navigator (wraps tabs to allow modals and recording flow)
+function MainStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="Main" component={MainTabs} />
+
+      {/* Session Detail Modal */}
+      <Stack.Screen
+        name="SessionDetail"
+        component={SessionDetailScreen}
+        options={{
+          presentation: 'modal',
+          headerShown: true,
+          title: 'Détails de la session',
+        }}
+      />
+
+      {/* Session List */}
+      <Stack.Screen
+        name="SessionList"
+        component={SessionListScreen}
+        options={{
+          headerShown: true,
+          title: 'Mes sessions',
+        }}
+      />
+
+      {/* Recording Flow (accessible after onboarding) */}
+      <Stack.Screen
+        name="FirstRecording"
+        component={FirstRecordingScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Loading"
+        component={LoadingScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Mood"
+        component={MoodScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Insight"
+        component={InsightScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Paywall"
+        component={PaywallScreen}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 // Root Navigator with conditional rendering
 export default function Navigation() {
   const { isAuth, isLoading, user } = useAuthStore();
@@ -193,7 +256,7 @@ export default function Navigation() {
 
   return (
     <NavigationContainer>
-      <MainTabs />
+      <MainStack />
     </NavigationContainer>
   );
 }

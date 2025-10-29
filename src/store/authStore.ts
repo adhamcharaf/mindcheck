@@ -6,6 +6,8 @@ interface AuthUser {
   id: string;
   email: string;
   onboarding_completed: boolean;
+  is_premium?: boolean | null;
+  trial_ends_at?: string | null;
   onboarding_goal?: string | null;
   onboarding_situation?: string | null;
   onboarding_feeling?: string | null;
@@ -24,6 +26,7 @@ interface AuthState {
   logout: () => Promise<void>;
   initialize: () => Promise<void>;
   updateOnboardingStatus: (completed: boolean) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AUTH_STORAGE_KEY = '@mindcheck:auth';
@@ -64,7 +67,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Fetch user data from database
         const { data: userData, error } = await supabase
           .from('users')
-          .select('id, email, onboarding_completed, onboarding_goal, onboarding_situation, onboarding_feeling, onboarding_reason, onboarding_frequency, onboarding_timing')
+          .select('id, email, onboarding_completed, is_premium, trial_ends_at, onboarding_goal, onboarding_situation, onboarding_feeling, onboarding_reason, onboarding_frequency, onboarding_timing')
           .eq('id', session.user.id)
           .single();
 
@@ -80,6 +83,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               id: userData.id,
               email: userData.email,
               onboarding_completed: userData.onboarding_completed ?? false,
+              is_premium: userData.is_premium,
+              trial_ends_at: userData.trial_ends_at,
               onboarding_goal: userData.onboarding_goal,
               onboarding_situation: userData.onboarding_situation,
               onboarding_feeling: userData.onboarding_feeling,
@@ -98,6 +103,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               id: userData.id,
               email: userData.email,
               onboarding_completed: userData.onboarding_completed ?? false,
+              is_premium: userData.is_premium,
+              trial_ends_at: userData.trial_ends_at,
               onboarding_goal: userData.onboarding_goal,
               onboarding_situation: userData.onboarding_situation,
               onboarding_feeling: userData.onboarding_feeling,
@@ -130,6 +137,48 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (user) {
       const updatedUser = { ...user, onboarding_completed: completed };
       get().setUser(updatedUser);
+    }
+  },
+
+  refreshUser: async () => {
+    const { user } = get();
+    if (!user?.id) return;
+
+    try {
+      // Fetch fresh user data from database
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('id, email, onboarding_completed, is_premium, trial_ends_at, onboarding_goal, onboarding_situation, onboarding_feeling, onboarding_reason, onboarding_frequency, onboarding_timing')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error refreshing user data:', error);
+        return;
+      }
+
+      if (userData) {
+        const refreshedUser: AuthUser = {
+          id: userData.id,
+          email: userData.email,
+          onboarding_completed: userData.onboarding_completed ?? false,
+          is_premium: userData.is_premium,
+          trial_ends_at: userData.trial_ends_at,
+          onboarding_goal: userData.onboarding_goal,
+          onboarding_situation: userData.onboarding_situation,
+          onboarding_feeling: userData.onboarding_feeling,
+          onboarding_reason: userData.onboarding_reason,
+          onboarding_frequency: userData.onboarding_frequency,
+          onboarding_timing: userData.onboarding_timing,
+        };
+
+        set({ user: refreshedUser });
+
+        // Persist to AsyncStorage
+        await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(refreshedUser));
+      }
+    } catch (error) {
+      console.error('Refresh user error:', error);
     }
   },
 }));

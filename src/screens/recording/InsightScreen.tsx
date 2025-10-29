@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Animated,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
@@ -17,6 +17,12 @@ import { uploadAudio } from '../../services/storage';
 import { supabase } from '../../services/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { RootStackParamList } from '../../types';
+import {
+  detectCrisis,
+  CRISIS_MESSAGE,
+  getDetectedCrisisKeywords,
+  logCrisisDetection
+} from '../../utils/crisisDetection';
 
 type InsightScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Insight'>;
@@ -27,11 +33,26 @@ export default function InsightScreen({ navigation, route }: InsightScreenProps)
   const { transcript, audioUri, insight, moodScore } = route.params;
   const user = useAuthStore((state) => state.user);
   const [isSaving, setIsSaving] = useState(false);
+  const [displayedInsight, setDisplayedInsight] = useState(insight);
 
   // Fade-in animation for insight
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Check for crisis keywords in transcript
+    const hasCrisis = detectCrisis(transcript);
+
+    if (hasCrisis) {
+      // Append crisis message to insight
+      setDisplayedInsight(insight + CRISIS_MESSAGE);
+
+      // Silent logging
+      const detectedKeywords = getDetectedCrisisKeywords(transcript);
+      if (user) {
+        logCrisisDetection(user.id, 'pending-session-id', detectedKeywords);
+      }
+    }
+
     // Animate insight fade-in
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -42,6 +63,26 @@ export default function InsightScreen({ navigation, route }: InsightScreenProps)
     // Save session in the background
     saveSession();
   }, []);
+
+  const navigateAfterSession = () => {
+    if (!user) return;
+
+    // Check if user has premium access (trial active OR paid)
+    const hasPremiumAccess =
+      user.is_premium ||
+      (user.trial_ends_at && new Date(user.trial_ends_at) > new Date());
+
+    if (!hasPremiumAccess) {
+      // No premium/trial → Show paywall
+      navigation.navigate('Paywall', { sessionId: 'temp' });
+    } else {
+      // Trial active or premium paid → Return to main app
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
+    }
+  };
 
   const saveSession = async () => {
     if (!user) {
@@ -92,8 +133,8 @@ export default function InsightScreen({ navigation, route }: InsightScreenProps)
 
       setIsSaving(false);
 
-      // Navigate to paywall with session ID
-      navigation.navigate('Paywall', { sessionId });
+      // Navigate based on premium status
+      navigateAfterSession();
     } catch (err) {
       console.error('Error saving session:', err);
       setIsSaving(false);
@@ -111,7 +152,7 @@ export default function InsightScreen({ navigation, route }: InsightScreenProps)
         <View style={styles.insightContainer}>
           <Text style={styles.insightLabel}>💡 Ton insight:</Text>
           <Animated.View style={{ opacity: fadeAnim }}>
-            <Text style={styles.insightText}>{insight}</Text>
+            <Text style={styles.insightText}>{displayedInsight}</Text>
           </Animated.View>
         </View>
 
@@ -152,7 +193,7 @@ export default function InsightScreen({ navigation, route }: InsightScreenProps)
         ) : (
           <TouchableOpacity
             style={styles.continueButton}
-            onPress={() => navigation.navigate('Paywall', { sessionId: 'temp' })}
+            onPress={navigateAfterSession}
           >
             <Text style={styles.continueButtonText}>Continuer</Text>
           </TouchableOpacity>

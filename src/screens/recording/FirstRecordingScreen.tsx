@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   Animated,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Audio, RecordingOptions, RecordingOptionsPresets } from 'expo-audio';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, LIMITS } from '../../utils/constants';
 import { transcribeAudio } from '../../services/whisper';
@@ -34,6 +34,7 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
 
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const chunkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   useEffect(() => {
     // Start recording immediately when screen mounts
@@ -47,8 +48,8 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
       if (chunkIntervalRef.current) {
         clearInterval(chunkIntervalRef.current);
       }
-      if (recording) {
-        recording.stopAndUnloadAsync();
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync();
       }
     };
   }, []);
@@ -103,48 +104,27 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
 
   const startRecording = async () => {
     try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission requise', 'Nous avons besoin d\'accéder au microphone.');
-        navigation.goBack();
-        return;
+      const { granted } = await Audio.getPermissionsAsync();
+      if (!granted) {
+        const { granted: requestGranted } = await Audio.requestPermissionsAsync();
+        if (!requestGranted) {
+          Alert.alert('Permission requise', 'Nous avons besoin d\'accéder au microphone.');
+          navigation.goBack();
+          return;
+        }
       }
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
       });
 
-      const { recording: newRecording } = await Audio.Recording.createAsync({
-        isMeteringEnabled: true,
-        android: {
-          extension: '.m4a',
-          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-          audioEncoder: Audio.AndroidAudioEncoder.AAC,
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-        },
-        ios: {
-          extension: '.m4a',
-          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-          audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-        web: {
-          mimeType: 'audio/webm',
-          bitsPerSecond: 128000,
-        },
-      });
+      // Use HIGH_QUALITY preset for better audio quality
+      const newRecording = new Audio.Recording();
+      await newRecording.prepareToRecordAsync(RecordingOptionsPresets.HIGH_QUALITY);
+      await newRecording.startAsync();
 
+      recordingRef.current = newRecording;
       setRecording(newRecording);
       setIsRecording(true);
 
@@ -170,8 +150,11 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
         clearInterval(durationIntervalRef.current);
       }
 
-      await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
+      await recording.stopAndUnloadAsync();
+
+      // Clear the ref
+      recordingRef.current = null;
 
       if (!uri) {
         Alert.alert('Erreur', 'Aucun enregistrement trouvé.');
