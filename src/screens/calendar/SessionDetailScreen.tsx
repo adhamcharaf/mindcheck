@@ -12,11 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import {
-  useAudioPlayer,
-  useAudioPlayerStatus,
-  setAudioModeAsync,
-} from 'expo-audio';
+import { Audio } from 'expo-av';
 import Slider from '@react-native-community/slider';
 import { COLORS, SPACING, FONT_SIZES } from '../../utils/constants';
 import { getSessionById, getMoodEmoji, formatSessionDate } from '../../services/sessions';
@@ -41,26 +37,28 @@ export default function SessionDetailScreen({ navigation, route }: SessionDetail
 
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const audioPlayer = useAudioPlayer();
-  const audioStatus = useAudioPlayerStatus(audioPlayer);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Audio playback tracking
-  const [isSeeking, setIsSeeking] = useState(false); // User is dragging slider
-  const [seekPosition, setSeekPosition] = useState(0); // Position during seeking
-
-  // Derive playing state, position and duration from audioStatus
-  const isPlaying = audioStatus?.playing || false;
-  const position = isSeeking ? seekPosition : ((audioStatus?.currentTime || 0) * 1000);
-  const duration = (audioStatus?.duration || 0) * 1000;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPosition, setSeekPosition] = useState(0);
 
   useEffect(() => {
     // Refresh user data to get latest premium status
     refreshUser();
     loadSession();
 
-    // No cleanup needed - useAudioPlayer handles it automatically via useReleasingSharedObject
+    return () => {
+      // Cleanup audio on unmount
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
   }, [sessionId]);
 
   const loadSession = async () => {
@@ -91,10 +89,14 @@ export default function SessionDetailScreen({ navigation, route }: SessionDetail
     try {
       if (isPlaying) {
         // Pause audio
-        audioPlayer.pause();
-      } else if (audioStatus?.currentTime && audioStatus.currentTime > 0) {
+        if (sound) {
+          await sound.pauseAsync();
+          setIsPlaying(false);
+        }
+      } else if (sound) {
         // Resume audio
-        audioPlayer.play();
+        await sound.playAsync();
+        setIsPlaying(true);
       } else {
         // Load and play audio with signed URL
         setIsLoadingAudio(true);
@@ -112,14 +114,29 @@ export default function SessionDetailScreen({ navigation, route }: SessionDetail
         console.log('[DEBUG] Using signed URL for audio playback');
 
         // Configure audio mode for speaker output (not earpiece)
-        await setAudioModeAsync({
-          playsInSilentMode: true,
-          allowsRecording: false,
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          allowsRecordingIOS: false,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
         });
 
         // Load and play the audio
-        audioPlayer.replace({ uri: signedUrl });
-        audioPlayer.play();
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: signedUrl },
+          { shouldPlay: true },
+          (status) => {
+            // Update playback status
+            if (status.isLoaded) {
+              setIsPlaying(status.isPlaying);
+              setPosition(status.positionMillis);
+              setDuration(status.durationMillis || 0);
+            }
+          }
+        );
+
+        setSound(newSound);
         setIsLoadingAudio(false);
       }
     } catch (error) {
@@ -137,10 +154,10 @@ export default function SessionDetailScreen({ navigation, route }: SessionDetail
     setSeekPosition(value);
   };
 
-  const handleSliderEnd = (value: number) => {
-    // Convert milliseconds to seconds for expo-audio
-    const seconds = value / 1000;
-    audioPlayer.seekTo(seconds);
+  const handleSliderEnd = async (value: number) => {
+    if (sound) {
+      await sound.setPositionAsync(value);
+    }
     setIsSeeking(false);
   };
 
@@ -239,14 +256,14 @@ export default function SessionDetailScreen({ navigation, route }: SessionDetail
                       style={styles.slider}
                       minimumValue={0}
                       maximumValue={duration || 1}
-                      value={position}
+                      value={isSeeking ? seekPosition : position}
                       minimumTrackTintColor={COLORS.primary}
                       maximumTrackTintColor={COLORS.border}
                       thumbTintColor={COLORS.primary}
                       onSlidingStart={handleSliderStart}
                       onValueChange={handleSliderChange}
                       onSlidingComplete={handleSliderEnd}
-                      disabled={!audioStatus?.currentTime && !duration}
+                      disabled={!sound || !duration}
                     />
                   </>
                 )}

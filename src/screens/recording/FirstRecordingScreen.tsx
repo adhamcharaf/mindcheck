@@ -8,43 +8,22 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  useAudioRecorder,
-  getRecordingPermissionsAsync,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
-  RecordingPresets,
-} from 'expo-audio';
+import { Audio } from 'expo-av';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, SPACING, FONT_SIZES, LIMITS } from '../../utils/constants';
 import { transcribeAudio } from '../../services/whisper';
 import { RootStackParamList } from '../../types';
-import ThemeSelectionModal, { RecordingTheme } from '../../components/ThemeSelectionModal';
 
 type FirstRecordingScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'FirstRecording'>;
 };
 
-// Prompt themes with their prompts
-const THEME_PROMPTS: Record<Exclude<RecordingTheme, 'free'>, string[]> = {
-  daily: ['Comment tu te sens maintenant?', 'Qu\'est-ce qui s\'est passé de marquant?'],
-  difficult: ['Qu\'est-ce qui s\'est passé?', 'Comment tu te sens avec ça?'],
-  reflection: ['Qu\'est-ce qui te trotte dans la tête?', 'Qu\'est-ce que tu veux explorer?'],
-};
-
 export default function FirstRecordingScreen({ navigation }: FirstRecordingScreenProps) {
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
   const [transcript, setTranscript] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
-
-  // Theme selection
-  const [showThemeModal, setShowThemeModal] = useState(true);
-  const [selectedTheme, setSelectedTheme] = useState<RecordingTheme>('free');
-  const [currentPrompt, setCurrentPrompt] = useState<string>('');
-  const promptOpacity = useRef(new Animated.Value(0)).current;
 
   // Animation values for soundwave bars
   const bar1 = useRef(new Animated.Value(0.3)).current;
@@ -55,10 +34,10 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
 
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const chunkIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // DO NOT auto-start recording - wait for theme selection
+    // Start recording immediately when screen mounts
+    startRecording();
 
     return () => {
       // Cleanup on unmount
@@ -68,64 +47,11 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
       if (chunkIntervalRef.current) {
         clearInterval(chunkIntervalRef.current);
       }
-      if (promptTimeoutRef.current) {
-        clearTimeout(promptTimeoutRef.current);
-      }
-      if (audioRecorder.isRecording) {
-        audioRecorder.stop();
+      if (recording) {
+        recording.stopAndUnloadAsync();
       }
     };
-  }, [audioRecorder]);
-
-  // Handle theme selection and start recording
-  const handleThemeSelect = async (theme: RecordingTheme) => {
-    setSelectedTheme(theme);
-    setShowThemeModal(false);
-    await startRecording();
-
-    // Schedule prompts if theme is not 'free'
-    if (theme !== 'free') {
-      schedulePrompts(theme);
-    }
-  };
-
-  // Schedule prompts based on theme
-  const schedulePrompts = (theme: Exclude<RecordingTheme, 'free'>) => {
-    const prompts = THEME_PROMPTS[theme];
-
-    // Prompt 1: Show at 5s, fade after 3s
-    setTimeout(() => {
-      showPrompt(prompts[0]);
-    }, 5000);
-
-    // Prompt 2: Show at 45s (if session continues), fade after 3s
-    setTimeout(() => {
-      showPrompt(prompts[1]);
-    }, 45000);
-  };
-
-  // Show prompt with fade in/out animation
-  const showPrompt = (text: string) => {
-    setCurrentPrompt(text);
-
-    // Fade in
-    Animated.timing(promptOpacity, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start(() => {
-      // Wait 3 seconds, then fade out
-      promptTimeoutRef.current = setTimeout(() => {
-        Animated.timing(promptOpacity, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }).start(() => {
-          setCurrentPrompt('');
-        });
-      }, 3000);
-    });
-  };
+  }, []);
 
   // Animate soundwave bars
   useEffect(() => {
@@ -177,23 +103,49 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
 
   const startRecording = async () => {
     try {
-      const { granted } = await getRecordingPermissionsAsync();
-      if (!granted) {
-        const { granted: requestGranted } = await requestRecordingPermissionsAsync();
-        if (!requestGranted) {
-          Alert.alert('Permission requise', 'Nous avons besoin d\'accéder au microphone.');
-          navigation.goBack();
-          return;
-        }
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', 'Nous avons besoin d\'accéder au microphone.');
+        navigation.goBack();
+        return;
       }
 
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
       });
 
-      // Start recording with high quality settings (already configured in useAudioRecorder)
-      await audioRecorder.record();
+      const { recording: newRecording } = await Audio.Recording.createAsync({
+        isMeteringEnabled: true,
+        android: {
+          extension: '.m4a',
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.m4a',
+          outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/webm',
+          bitsPerSecond: 128000,
+        },
+      });
+
+      setRecording(newRecording);
       setIsRecording(true);
 
       // Start duration timer
@@ -210,7 +162,7 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
   };
 
   const stopRecording = async () => {
-    if (!audioRecorder.isRecording) return;
+    if (!recording) return;
 
     try {
       setIsRecording(false);
@@ -218,9 +170,8 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
         clearInterval(durationIntervalRef.current);
       }
 
-      // Stop recording and get URI
-      await audioRecorder.stop();
-      const uri = audioRecorder.uri;
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
 
       if (!uri) {
         Alert.alert('Erreur', 'Aucun enregistrement trouvé.');
@@ -277,20 +228,7 @@ export default function FirstRecordingScreen({ navigation }: FirstRecordingScree
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Theme Selection Modal */}
-      <ThemeSelectionModal
-        visible={showThemeModal}
-        onSelect={handleThemeSelect}
-      />
-
       <View style={styles.content}>
-        {/* Prompt (if any) */}
-        {currentPrompt && (
-          <Animated.View style={[styles.promptContainer, { opacity: promptOpacity }]}>
-            <Text style={styles.promptText}>{currentPrompt}</Text>
-          </Animated.View>
-        )}
-
         {/* Timer */}
         <View style={styles.timerContainer}>
           <Text style={styles.timer}>{formatTime(duration)}</Text>
@@ -392,20 +330,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.xl,
   },
-  promptContainer: {
-    backgroundColor: COLORS.backgroundDark,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: 8,
-    marginBottom: SPACING.lg,
-    alignItems: 'center',
-  },
-  promptText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.primary,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
   timerContainer: {
     alignItems: 'center',
     marginBottom: SPACING.xl,
@@ -444,14 +368,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 10,
   },
   micIcon: {
     fontSize: 48,

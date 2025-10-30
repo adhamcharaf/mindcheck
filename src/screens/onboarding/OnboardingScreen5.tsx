@@ -9,10 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import {
-  getRecordingPermissionsAsync,
-  requestRecordingPermissionsAsync,
-} from 'expo-audio';
+import { Audio } from 'expo-av';
 import { COLORS, SPACING, FONT_SIZES } from '../../utils/constants';
 import { useAuthStore } from '../../store/authStore';
 import ProgressBar from '../../components/ProgressBar';
@@ -68,18 +65,16 @@ export default function OnboardingScreen5({ navigation }: OnboardingScreen5Props
 
     try {
       // Request microphone permission
-      const { granted } = await getRecordingPermissionsAsync();
-      if (!granted) {
-        const { granted: requestGranted } = await requestRecordingPermissionsAsync();
-        if (!requestGranted) {
-          Alert.alert(
-            'Permission requise',
-            'Voyce a besoin d\'accéder au microphone pour enregistrer ton journal vocal.',
-            [{ text: 'OK' }]
-          );
-          setLoading(false);
-          return;
-        }
+      const { status } = await Audio.requestPermissionsAsync();
+
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission requise',
+          'MindCheck a besoin d\'accéder au microphone pour enregistrer ton journal vocal.',
+          [{ text: 'OK' }]
+        );
+        setLoading(false);
+        return;
       }
 
       // Navigate to FirstRecording screen (onboarding will be completed at the end of the flow)
@@ -168,10 +163,10 @@ const styles = StyleSheet.create({
     shadowColor: COLORS.primary,
     shadowOffset: {
       width: 0,
-      height: 0,
+      height: 8,
     },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
     elevation: 10,
   },
   micIcon: {

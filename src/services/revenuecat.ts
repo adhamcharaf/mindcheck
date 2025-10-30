@@ -73,6 +73,7 @@ export async function purchasePremium(
       .update({
         is_premium: true,
         trial_ends_at: null, // Clear trial when premium purchased
+        onboarding_completed: true, // Mark onboarding as completed
       })
       .eq('id', userId);
 

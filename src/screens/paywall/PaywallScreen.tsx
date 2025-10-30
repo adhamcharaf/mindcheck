@@ -41,27 +41,23 @@ export default function PaywallScreen({ navigation, route }: PaywallScreenProps)
         return;
       }
 
-      // Update local user state
+      // Update local user state (including onboarding_completed to trigger navigation switch)
       const updatedUser = {
         ...user,
         is_premium: true,
         trial_ends_at: null,
+        onboarding_completed: true,
       };
       useAuthStore.getState().setUser(updatedUser);
 
       // Show success message
+      // Navigation will automatically switch to MainStack when onboarding_completed becomes true
       Alert.alert(
         '✓ Premium activé!',
         'Tes données sont sauvegardées. Profite de toutes les fonctionnalités!',
         [
           {
             text: 'Commencer',
-            onPress: () => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Main' }],
-              });
-            },
           },
         ]
       );
@@ -109,20 +105,13 @@ export default function PaywallScreen({ navigation, route }: PaywallScreenProps)
       useAuthStore.getState().setUser(updatedUser);
 
       // Show surprise message
+      // Navigation will automatically switch to MainStack when onboarding_completed becomes true
       Alert.alert(
         '🎉 Surprise!',
         `OK, on te donne Premium. Gratuit.\n\nDécouvre tout pendant ${TRIAL_DURATION_DAYS} jours.`,
         [
           {
             text: 'Activer mon Premium',
-            onPress: () => {
-              // Navigate to main app
-              // Use reset to clear the stack and start fresh at MainTabs
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Main' }],
-              });
-            },
           },
         ]
       );

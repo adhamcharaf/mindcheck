@@ -36,6 +36,7 @@ export default function OnboardingScreen1({ navigation }: OnboardingScreen1Props
   const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   const handleContinue = async () => {
     if (!selectedGoal || !user) return;
@@ -60,6 +61,15 @@ export default function OnboardingScreen1({ navigation }: OnboardingScreen1Props
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Minimal Logout Button */}
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={logout}
+        activeOpacity={0.6}
+      >
+        <Text style={styles.logoutIcon}>←</Text>
+      </TouchableOpacity>
+
       <ProgressBar progress={20} />
 
       <View style={styles.content}>
@@ -119,6 +129,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  logoutButton: {
+    position: 'absolute',
+    top: 60,
+    left: SPACING.md,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  logoutIcon: {
+    fontSize: 28,
+    color: COLORS.textMuted,
+    opacity: 0.5,
   },
   content: {
     flex: 1,
