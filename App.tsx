@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'expo-crypto'; // Initialize crypto polyfill for uuid package
 import Navigation from './src/navigation';
 import { useAuthStore } from './src/store/authStore';
@@ -21,18 +22,20 @@ export default function App() {
   // Show loading screen while checking auth
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <StatusBar style="auto" />
-      </View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <StatusBar style="auto" />
+        </View>
+      </GestureHandlerRootView>
     );
   }
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <Navigation />
       <StatusBar style="auto" />
-    </>
+    </GestureHandlerRootView>
   );
 }
 

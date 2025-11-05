@@ -5,10 +5,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
 import { COLORS, SPACING, FONT_SIZES } from '../../utils/constants';
 import { supabase } from '../../services/supabase';
 import { useAuthStore } from '../../store/authStore';
@@ -38,6 +46,50 @@ export default function OnboardingScreen1({ navigation }: OnboardingScreen1Props
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
+  // Animation pour le swipe
+  const translateX = useSharedValue(0);
+
+  const showLogoutConfirmation = () => {
+    Alert.alert(
+      'Se déconnecter',
+      'Voulez-vous vraiment vous déconnecter ? Vous devrez vous reconnecter pour continuer.',
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Se déconnecter',
+          style: 'destructive',
+          onPress: logout,
+        },
+      ]
+    );
+  };
+
+  // Gesture pour swiper vers la droite
+  const panGesture = Gesture.Pan()
+    .onUpdate((event) => {
+      // Permettre uniquement le swipe vers la droite
+      if (event.translationX > 0) {
+        translateX.value = event.translationX;
+      }
+    })
+    .onEnd((event) => {
+      // Si le swipe est suffisamment long (> 100px), afficher la confirmation
+      if (event.translationX > 100) {
+        runOnJS(showLogoutConfirmation)();
+      }
+      // Retour à la position initiale avec animation
+      translateX.value = withSpring(0);
+    });
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: translateX.value }],
+    };
+  });
+
   const handleContinue = async () => {
     if (!selectedGoal || !user) return;
 
@@ -60,68 +112,64 @@ export default function OnboardingScreen1({ navigation }: OnboardingScreen1Props
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Minimal Logout Button */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={logout}
-        activeOpacity={0.6}
-      >
-        <Text style={styles.logoutIcon}>←</Text>
-      </TouchableOpacity>
+    <GestureDetector gesture={panGesture}>
+      <Animated.View style={[styles.container, animatedStyle]}>
+        <SafeAreaView style={styles.innerContainer}>
+          <ProgressBar progress={20} />
 
-      <ProgressBar progress={20} />
+          <View style={styles.content}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Voyce est ton journal vocal quotidien</Text>
+              <Text style={styles.question}>Qu'est-ce que tu aimerais suivre?</Text>
+              <Text style={styles.swipeHint}>↔️ Glissez vers la droite pour vous déconnecter</Text>
+            </View>
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Voyce est ton journal vocal quotidien</Text>
-          <Text style={styles.question}>Qu'est-ce que tu aimerais suivre?</Text>
-        </View>
+            <View style={styles.optionsContainer}>
+              {GOAL_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.id}
+                  style={[
+                    styles.option,
+                    selectedGoal === option.id && styles.optionSelected,
+                  ]}
+                  onPress={() => setSelectedGoal(option.id)}
+                  disabled={loading}
+                >
+                  <Text
+                    style={[
+                      styles.optionText,
+                      selectedGoal === option.id && styles.optionTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
-        <View style={styles.optionsContainer}>
-          {GOAL_OPTIONS.map((option) => (
+          <View style={styles.footer}>
             <TouchableOpacity
-              key={option.id}
-              style={[
-                styles.option,
-                selectedGoal === option.id && styles.optionSelected,
-              ]}
-              onPress={() => setSelectedGoal(option.id)}
-              disabled={loading}
+              onPress={handleContinue}
+              disabled={!selectedGoal || loading}
             >
-              <Text
-                style={[
-                  styles.optionText,
-                  selectedGoal === option.id && styles.optionTextSelected,
-                ]}
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.continueButton, !selectedGoal && styles.continueButtonDisabled]}
               >
-                {option.label}
-              </Text>
+                {loading ? (
+                  <ActivityIndicator color={COLORS.text} />
+                ) : (
+                  <Text style={styles.continueButtonText}>Continuer</Text>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={handleContinue}
-          disabled={!selectedGoal || loading}
-        >
-          <LinearGradient
-            colors={[COLORS.primary, COLORS.secondary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.continueButton, !selectedGoal && styles.continueButtonDisabled]}
-          >
-            {loading ? (
-              <ActivityIndicator color={COLORS.text} />
-            ) : (
-              <Text style={styles.continueButtonText}>Continuer</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+          </View>
+        </SafeAreaView>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -130,20 +178,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  logoutButton: {
-    position: 'absolute',
-    top: 60,
-    left: SPACING.md,
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  logoutIcon: {
-    fontSize: 28,
-    color: COLORS.textMuted,
-    opacity: 0.5,
+  innerContainer: {
+    flex: 1,
   },
   content: {
     flex: 1,
@@ -162,6 +198,13 @@ const styles = StyleSheet.create({
   question: {
     fontSize: FONT_SIZES.lg,
     color: COLORS.textLight,
+    marginBottom: SPACING.sm,
+  },
+  swipeHint: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textMuted,
+    opacity: 0.6,
+    fontStyle: 'italic',
   },
   optionsContainer: {
     gap: SPACING.md,
