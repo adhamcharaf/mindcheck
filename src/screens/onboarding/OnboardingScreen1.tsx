@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  PanResponder,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,6 +40,41 @@ export default function OnboardingScreen1({ navigation }: OnboardingScreen1Props
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
+  // Swipe to logout gesture handler
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only activate for horizontal swipes
+        return Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        // Detect swipe right (at least 100px movement)
+        if (gestureState.dx > 100 && Math.abs(gestureState.dy) < 50) {
+          handleLogoutConfirmation();
+        }
+      },
+    })
+  ).current;
+
+  const handleLogoutConfirmation = () => {
+    Alert.alert(
+      'Déconnexion',
+      'Voulez-vous vraiment vous déconnecter?',
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Se déconnecter',
+          style: 'destructive',
+          onPress: logout,
+        },
+      ]
+    );
+  };
+
   const handleContinue = async () => {
     if (!selectedGoal || !user) return;
 
@@ -61,65 +98,61 @@ export default function OnboardingScreen1({ navigation }: OnboardingScreen1Props
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Minimal Logout Button */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={logout}
-        activeOpacity={0.6}
-      >
-        <Text style={styles.logoutIcon}>←</Text>
-      </TouchableOpacity>
+      <View style={styles.container} {...panResponder.panHandlers}>
+        <ProgressBar progress={20} />
 
-      <ProgressBar progress={20} />
+        {/* Subtle hint for swipe gesture */}
+        <Text style={styles.swipeHint}>Glissez vers la droite pour vous déconnecter</Text>
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Voyce est ton journal vocal quotidien</Text>
-          <Text style={styles.question}>Qu'est-ce que tu aimerais suivre?</Text>
-        </View>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Voyce est ton journal vocal quotidien</Text>
+            <Text style={styles.question}>Qu'est-ce que tu aimerais suivre?</Text>
+          </View>
 
-        <View style={styles.optionsContainer}>
-          {GOAL_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option.id}
-              style={[
-                styles.option,
-                selectedGoal === option.id && styles.optionSelected,
-              ]}
-              onPress={() => setSelectedGoal(option.id)}
-              disabled={loading}
-            >
-              <Text
+          <View style={styles.optionsContainer}>
+            {GOAL_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.id}
                 style={[
-                  styles.optionText,
-                  selectedGoal === option.id && styles.optionTextSelected,
+                  styles.option,
+                  selectedGoal === option.id && styles.optionSelected,
                 ]}
+                onPress={() => setSelectedGoal(option.id)}
+                disabled={loading}
               >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={[
+                    styles.optionText,
+                    selectedGoal === option.id && styles.optionTextSelected,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={handleContinue}
-          disabled={!selectedGoal || loading}
-        >
-          <LinearGradient
-            colors={[COLORS.primary, COLORS.secondary]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.continueButton, !selectedGoal && styles.continueButtonDisabled]}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            onPress={handleContinue}
+            disabled={!selectedGoal || loading}
           >
-            {loading ? (
-              <ActivityIndicator color={COLORS.text} />
-            ) : (
-              <Text style={styles.continueButtonText}>Continuer</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.continueButton, !selectedGoal && styles.continueButtonDisabled]}
+            >
+              {loading ? (
+                <ActivityIndicator color={COLORS.text} />
+              ) : (
+                <Text style={styles.continueButtonText}>Continuer</Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -130,20 +163,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  logoutButton: {
-    position: 'absolute',
-    top: 60,
-    left: SPACING.md,
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  logoutIcon: {
-    fontSize: 28,
+  swipeHint: {
+    fontSize: 12,
     color: COLORS.textMuted,
-    opacity: 0.5,
+    opacity: 0.6,
+    textAlign: 'center',
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
   },
   content: {
     flex: 1,
